@@ -18,6 +18,15 @@ test_profile:
 extended_tests:
 	uv run --with-editable . pytest --only-extended $(TEST_FILE)
 
+test_database:
+	uv run --with-editable . pytest tests/unit_tests/database/
+
+test_database_integration:
+	uv run --with-editable . pytest tests/integration_tests/test_database_integration.py --only-extended
+
+test_database_watch:
+	uv run --with-editable . ptw --snapshot-update --now . -- -vv tests/unit_tests/database/
+
 
 ######################
 # LINTING AND FORMATTING
@@ -58,6 +67,9 @@ help:
 	@echo 'format                       - run code formatters'
 	@echo 'lint                         - run linters'
 	@echo 'test                         - run unit tests'
+	@echo 'test_database                - run database unit tests'
+	@echo 'test_database_integration    - run database integration tests'
+	@echo 'test_database_watch          - run database tests in watch mode'
 	@echo 'tests                        - run unit tests'
 	@echo 'test TEST_FILE=<test_file>   - run all tests in file'
 	@echo 'test_watch                   - run unit tests in watch mode'

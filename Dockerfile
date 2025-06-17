@@ -29,7 +29,7 @@ ENV PATH="/root/.local/bin:$PATH"
 
 # -- Copy built frontend from builder stage --
 # The app.py expects the frontend build to be at ../frontend/dist relative to its own location.
-# If app.py is at /deps/backend/src/agent/app.py, then ../frontend/dist resolves to /deps/frontend/dist.
+# If app.py is at /deps/backend/src/research_agent/app.py, then ../frontend/dist resolves to /deps/frontend/dist.
 COPY --from=frontend-builder /app/frontend/dist /deps/frontend/dist
 # -- End of copying built frontend --
 
@@ -44,8 +44,8 @@ RUN uv pip install --system pip setuptools wheel
 RUN cd /deps/backend && \
     PYTHONDONTWRITEBYTECODE=1 UV_SYSTEM_PYTHON=1 uv pip install --system -c /api/constraints.txt -e .
 # -- End of local dependencies install --
-ENV LANGGRAPH_HTTP='{"app": "/deps/backend/src/agent/app.py:app"}'
-ENV LANGSERVE_GRAPHS='{"agent": "/deps/backend/src/agent/graph.py:graph"}'
+ENV LANGGRAPH_HTTP='{"app": "/deps/backend/src/research_agent/app.py:app"}'
+ENV LANGSERVE_GRAPHS='{"agent": "/deps/backend/src/research_agent/graph.py:graph"}'
 
 # -- Ensure user deps didn't inadvertently overwrite langgraph-api
 # Create all required directories that the langgraph-api package expects

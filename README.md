@@ -63,7 +63,7 @@ _Alternatively, you can run the backend and frontend development servers separat
 
 ## How the Backend Agent Works (High-Level)
 
-The core of the backend is a LangGraph agent defined in `backend/src/agent/graph.py`. It follows these steps:
+The core of the backend is a LangGraph agent defined in `backend/src/research_agent/graph.py`. It follows these steps:
 
 ![Agent Flow](./agent.png)
 

@@ -18,6 +18,16 @@ dependencies = [
     "langgraph-api",
     "fastapi",
     "google-genai",
+    "loguru>=0.7.3",
+    "google>=3.0.0",
+    "google-cloud-bigquery>=3.34.0",
+    "google-resumable-media>=2.7.2",
+    "google-cloud-storage>=3.1.0",
+    "googleauthentication>=0.0.18",
+    "google-cloud-bigquery-storage>=2.32.0",
+    "google-cloud>=0.34.0",
+    "ipykernel>=6.29.5",
+    "pytest-asyncio>=1.0.0",
 ]
 
 
@@ -56,4 +66,42 @@ convention = "google"
 dev = [
     "langgraph-cli[inmem]>=0.1.71",
     "pytest>=8.3.5",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [""]
+markers = [
+    "only_extended: marks tests as extended tests that require external services",
+    "slow: marks tests as slow running",
+    "asyncio: marks tests as asyncio tests"
+]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+]
+# Filter out extended tests by default
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
 ]
