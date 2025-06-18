@@ -15,7 +15,7 @@ Intended for use in backend services requiring secure, validated, and efficient 
 
 import asyncio
 import time
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Optional
 
 from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError

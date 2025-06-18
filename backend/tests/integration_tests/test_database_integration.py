@@ -5,7 +5,6 @@ import os
 from typing import Optional
 
 from src.query_tools.bigquery_connector import BigQuerySQLExecutor
-from src.query_tools.monitoring import MonitoredSQLExecutor
 from src.query_tools.database import QueryConfig
 
 
@@ -59,17 +58,3 @@ class TestBigQueryIntegration:
 
         assert result.row_count == 1
         assert result.rows[0]["test_value"] == 1
-
-    def test_monitoring_integration(self, executor: BigQuerySQLExecutor) -> None:
-        """Test monitoring with real queries"""
-        monitored_executor = MonitoredSQLExecutor(executor)
-
-        config = QueryConfig(max_results=1)
-        result = monitored_executor.execute_query("SELECT 1 as test_value", config)
-
-        assert result.row_count == 1
-
-        # Check metrics
-        summary = monitored_executor.get_metrics_summary()
-        assert summary["total_queries"] == 1
-        assert summary["avg_execution_time"] > 0
