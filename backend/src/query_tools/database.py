@@ -62,10 +62,6 @@ class QueryValidator:
 
         query_upper = query.upper().strip()
 
-        # Only allow SELECT statements
-        if not query_upper.startswith("SELECT"):
-            raise QueryValidationError("Only SELECT statements are allowed")
-
         # Block dangerous keywords
         dangerous_keywords = [
             "DROP",
@@ -96,21 +92,21 @@ class SQLQueryExecutor(ABC):
     def execute_query(
         self, query: str, config: Optional[QueryConfig] = None
     ) -> QueryResult:
-        """Execute query synchronously"""
+        """Execute query synchronously."""
         pass
 
     async def execute_query_async(
         self, query: str, config: Optional[QueryConfig] = None
     ) -> QueryResult:
-        """Execute query asynchronously - default implementation runs in thread pool"""
+        """Execute query asynchronously - default implementation runs in thread pool."""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.execute_query, query, config)
 
     @abstractmethod
     def test_connection(self) -> bool:
-        """Test database connection"""
+        """Test database connection."""
         pass
 
     def validate_query(self, query: str, config: Optional[QueryConfig] = None) -> None:
-        """Validate query using configured validator"""
+        """Validate query using configured validator."""
         self.validator.validate(query, config or QueryConfig())

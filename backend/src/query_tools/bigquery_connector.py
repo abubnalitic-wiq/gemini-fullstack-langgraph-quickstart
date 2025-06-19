@@ -15,7 +15,7 @@ Intended for use in backend services requiring secure, validated, and efficient 
 
 import asyncio
 import time
-from typing import Callable, Optional
+from typing import Any, Callable, Optional, TypeAlias
 
 from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
@@ -29,6 +29,8 @@ from src.query_tools.database import (
     QueryValidator,
     SQLQueryExecutor,
 )
+
+QueryParams: TypeAlias = dict[str, Any]
 
 
 class BigQueryValidator(QueryValidator):
@@ -98,7 +100,10 @@ class BigQuerySQLExecutor(SQLQueryExecutor):
         return self._client
 
     def execute_query(
-        self, query: str, config: Optional[QueryConfig] = None
+        self,
+        query: str,
+        config: Optional[QueryConfig] = None,
+        parameters: Optional[QueryParams] = None,
     ) -> QueryResult:
         """Execute BigQuery SQL query."""
         config = config or QueryConfig()
@@ -107,9 +112,14 @@ class BigQuerySQLExecutor(SQLQueryExecutor):
         # Validate query
         self.validate_query(query, config)
 
+        query_parameters = []
+        if parameters:
+            query_parameters = self._create_query_parameters(parameters)
+
         try:
             # Configure job
             job_config = bigquery.QueryJobConfig(
+                query_parameters=query_parameters,
                 dry_run=config.dry_run,
                 use_query_cache=config.use_cache,
                 labels=config.labels or {},
@@ -243,3 +253,51 @@ class BigQuerySQLExecutor(SQLQueryExecutor):
             return [table.table_id for table in tables]
         except Exception as e:
             raise DatabaseError(f"Failed to list tables: {str(e)}", original_error=e)
+
+    def _create_query_parameters(
+        self, params: QueryParams
+    ) -> list[bigquery.ScalarQueryParameter | bigquery.ArrayQueryParameter]:
+        """Convert parameter dictionary to BigQuery query parameters."""
+        query_parameters = []
+
+        for param_name, param_value in params.items():
+            if isinstance(param_value, str):
+                query_parameters.append(
+                    bigquery.ScalarQueryParameter(param_name, "STRING", param_value)
+                )
+            elif isinstance(param_value, int):
+                query_parameters.append(
+                    bigquery.ScalarQueryParameter(param_name, "INT64", param_value)
+                )
+            elif isinstance(param_value, float):
+                query_parameters.append(
+                    bigquery.ScalarQueryParameter(param_name, "FLOAT64", param_value)
+                )
+            elif isinstance(param_value, bool):
+                query_parameters.append(
+                    bigquery.ScalarQueryParameter(param_name, "BOOL", param_value)
+                )
+            elif isinstance(param_value, list):
+                # Handle arrays - assume string arrays for now
+                if param_value and isinstance(param_value[0], str):
+                    query_parameters.append(
+                        bigquery.ArrayQueryParameter(param_name, "STRING", param_value)
+                    )
+                elif param_value and isinstance(param_value[0], int):
+                    query_parameters.append(
+                        bigquery.ArrayQueryParameter(param_name, "INT64", param_value)
+                    )
+                else:
+                    # Empty array or mixed types - default to string
+                    query_parameters.append(
+                        bigquery.ArrayQueryParameter(param_name, "STRING", param_value)
+                    )
+            else:
+                # Default to string representation
+                query_parameters.append(
+                    bigquery.ScalarQueryParameter(
+                        param_name, "STRING", str(param_value)
+                    )
+                )
+
+        return query_parameters
