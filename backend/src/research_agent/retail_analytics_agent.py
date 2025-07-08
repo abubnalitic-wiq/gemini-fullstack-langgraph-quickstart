@@ -535,8 +535,7 @@ Your capabilities include:
 Start by testing the connection if this is a new session, then assist with any retail analytics questions or requests."""
 
     async def arun(self, message: str, thread_id: str = "default") -> str:
-        """
-        Run the agent asynchronously.
+        """Run the agent asynchronously.
 
         Args:
             message: User message/query

@@ -1,10 +1,8 @@
 # Gemini Fullstack LangGraph Quickstart
 
-This project demonstrates a fullstack application using a React frontend and a LangGraph-powered backend agent. The agent is designed to perform comprehensive research on a user's query by dynamically generating search terms, querying the web using Google Search, reflecting on the results to identify knowledge gaps, and iteratively refining its search until it can provide a well-supported answer with citations. This application serves as an example of building research-augmented conversational AI using LangGraph and Google's Gemini models.
+This project provides a fullstack application using a React frontend and a LangGraph-powered backend agent. The agent is designed to be able to perform external research as well as use tools that can search internal data for financial reporting. 
 
-![Gemini Fullstack LangGraph](./app.png)
-
-## Features
+## Features (needs updating)
 
 - 💬 Fullstack application with a React frontend and LangGraph backend.
 - 🧠 Powered by a LangGraph agent for advanced research and conversational AI.
@@ -29,12 +27,13 @@ Follow these steps to get the application running locally for development and te
 
 -   Node.js and npm (or yarn/pnpm)
 -   Python 3.8+
--   **`GEMINI_API_KEY`**: The backend agent requires a Google Gemini API key.
+-   **`GEMINI_API_KEY`**: The backend agent requires a Google Gemini API key. You should be able to find this in GCP instance.
     1.  Navigate to the `backend/` directory.
     2.  Create a file named `.env` by copying the `backend/.env.example` file.
     3.  Open the `.env` file and add your Gemini API key: `GEMINI_API_KEY="YOUR_ACTUAL_API_KEY"`
 
 **2. Install Dependencies:**
+ (needs updating to virtual env)
 
 **Backend:**
 

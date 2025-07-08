@@ -187,7 +187,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const isLiveActivityForThisBubble = isLastMessage && isOverallLoading;
 
   return (
-    <div className={`relative break-words flex flex-col`}>
+    <div className={`relative break-words flex flex-col overflow-hidden`}>
       {activityForThisBubble && activityForThisBubble.length > 0 && (
         <div className="mb-3 border-b border-neutral-700 pb-3 text-xs">
           <ActivityTimeline

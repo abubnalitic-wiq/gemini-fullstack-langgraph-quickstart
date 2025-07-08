@@ -1,31 +1,39 @@
+"""LangGraph-based research agent for automated web research and summarization.
+
+This module defines the nodes, state, and graph structure for a research agent
+that generates queries, performs web research, reflects on findings, and produces
+a final answer with citations using Gemini and Google Search APIs.
+"""
+
+import logging
 import os
 from typing import Any
 
-from src.research_agent.tools_and_schemas import SearchQueryList, Reflection
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage
-from langgraph.types import Send
-from langgraph.graph import StateGraph
-from langgraph.graph import START, END
-from langchain_core.runnables import RunnableConfig
 from google.genai import Client
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.runnables import RunnableConfig
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langgraph.graph import END, START, StateGraph
+from langgraph.types import Send
 
+from src.query_tools.financial_data_tools import financial_analysis_tools
+from src.research_agent.configuration import Configuration
+from src.research_agent.prompts import (
+    answer_instructions,
+    get_current_date,
+    query_writer_instructions,
+    reflection_instructions,
+    web_searcher_instructions,
+    FINANCIAL_ANALYST_PROMPT,
+)
 from src.research_agent.state import (
     OverallState,
     QueryGenerationState,
     ReflectionState,
     WebSearchState,
 )
-from src.research_agent.configuration import Configuration
-from src.research_agent.prompts import (
-    get_current_date,
-    query_writer_instructions,
-    web_searcher_instructions,
-    reflection_instructions,
-    answer_instructions,
-)
-from langchain_google_genai import ChatGoogleGenerativeAI
-import logging
+from src.research_agent.tools_and_schemas import Reflection, SearchQueryList
 from src.research_agent.utils import (
     get_citations,
     get_research_topic,
@@ -50,7 +58,7 @@ genai_client = Client(api_key=os.getenv("GEMINI_API_KEY"))
 def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerationState:
     """LangGraph node that generates a search queries based on the User's question.
 
-    Uses Gemini 2.0 Flash to create an optimized search query for web research based on
+    Uses Gemini 2.5 Flash to create an optimized search query for web research based on
     the User's question.
 
     Args:
@@ -67,7 +75,7 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
         state["initial_search_query_count"] = configurable.number_of_initial_queries
 
     logging.info("[generate_query] Generating search queries based on user question.")
-    # init Gemini 2.0 Flash
+    # init Gemini 2.5 Flash
     llm = ChatGoogleGenerativeAI(
         model=configurable.query_generator_model,
         temperature=1.0,
@@ -117,7 +125,7 @@ def web_research(state: WebSearchState, config: RunnableConfig) -> OverallState:
         current_date=get_current_date(),
         research_topic=state["search_query"],
     )
-    
+
     logging.info(f"[web_research] formatted_prompt:\n{formatted_prompt}")
     # Uses the google genai client as the langchain client doesn't return grounding metadata
     response = genai_client.models.generate_content(
@@ -274,27 +282,127 @@ def finalize_answer(state: OverallState, config: RunnableConfig) -> dict[str, An
     }
 
 
+def financial_analysis(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
+    """LangGraph node that performs financial analysis using the financial tools."""
+    configurable = Configuration.from_runnable_config(config)
+
+    # Initialize the LLM with LangChain
+    llm = ChatGoogleGenerativeAI(
+        model=configurable.query_generator_model,
+        temperature=0,
+        max_retries=2,
+        api_key=os.getenv("GEMINI_API_KEY"),
+    )
+
+    # Bind the financial tools to the LLM
+    llm_with_tools = llm.bind_tools(financial_analysis_tools)
+
+    # Create the prompt
+    financial_prompt = FINANCIAL_ANALYST_PROMPT
+
+    # Get the initial response (which should include tool calls)
+    messages = [HumanMessage(content=financial_prompt)]
+    ai_msg = llm_with_tools.invoke(messages)
+    messages.append(ai_msg)
+
+    # Execute any tool calls
+    for tool_call in ai_msg.tool_calls:
+        tool_name = tool_call["name"]
+        tool_args = tool_call["args"]
+
+        # Find and execute the tool
+        for tool in financial_analysis_tools:
+            if tool.name == tool_name:
+                try:
+                    result = tool.invoke(tool_args)
+                    # Add the tool result as a ToolMessage
+                    messages.append(
+                        ToolMessage(content=str(result), tool_call_id=tool_call["id"])
+                    )
+                except Exception as e:
+                    messages.append(
+                        ToolMessage(
+                            content=f"Error: {str(e)}", tool_call_id=tool_call["id"]
+                        )
+                    )
+                break
+
+    # Get the final response after tool execution
+    if ai_msg.tool_calls:
+        final_response = llm.invoke(messages)
+        return {
+            "messages": [final_response],
+            "sources_gathered": [],
+        }
+    else:
+        # No tool calls were made
+        return {
+            "messages": [ai_msg],
+            "sources_gathered": [],
+        }
+
+
+# Add a router node that decides between web research and financial analysis
+def route_query(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
+    """Determines whether to route to web research or financial analysis."""
+    user_query = get_research_topic(state["messages"]).lower()
+
+    # Keywords that indicate financial analysis
+    financial_keywords = [
+        "financial",
+        "sales",
+        "revenue",
+        "gpbf",
+        "profit",
+        "variance",
+        "weekly report",
+        "performance",
+        "metrics",
+        "forecast",
+        "budget",
+        "department",
+        "category",
+        "promotional",
+    ]
+
+    # Check if query is financial
+    is_financial = any(keyword in user_query for keyword in financial_keywords)
+
+    return {"query_type": "financial" if is_financial else "web_research"}
+
+
 # Create our Agent Graph
 builder = StateGraph(OverallState, config_schema=Configuration)
 
 # Define the nodes we will cycle between
+builder.add_node("route_query", route_query)
 builder.add_node("generate_query", generate_query)
 builder.add_node("web_research", web_research)
 builder.add_node("reflection", reflection)
 builder.add_node("finalize_answer", finalize_answer)
+builder.add_node("financial_analysis", financial_analysis)
+
 
 # Set the entrypoint as `generate_query`
 # This means that this node is the first one called
-builder.add_edge(START, "generate_query")
+builder.add_edge(START, "route_query")
+builder.add_conditional_edges(
+    "route_query",
+    lambda state: state.get("query_type", "web_research"),
+    {"web_research": "generate_query", "financial": "financial_analysis"},
+)
 # Add conditional edge to continue with search queries in a parallel branch
 builder.add_conditional_edges(
     "generate_query", continue_to_web_research, ["web_research"]
 )
-# Reflect on the web research
+# Reflect on the web research or the financial
+builder.add_edge("financial_analysis", END)
 builder.add_edge("web_research", "reflection")
 # Evaluate the research
 builder.add_conditional_edges(
-    "reflection", evaluate_research, ["web_research", "finalize_answer"]
+    "reflection",
+    evaluate_research,
+    ["web_research", "finalize_answer"],
 )
 # Finalize the answer
 builder.add_edge("finalize_answer", END)
