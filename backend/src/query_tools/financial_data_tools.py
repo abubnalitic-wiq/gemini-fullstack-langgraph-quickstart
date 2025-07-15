@@ -1,6 +1,7 @@
 from typing import Union, Any
 
 from langchain.tools import tool
+import logging
 
 from src.query_tools import (
     # get_brand_type_metrics,
@@ -31,7 +32,7 @@ def fetch_weekly_metrics(
     """Fetch specified metrics for a department for a single week.
 
     Args:
-        department: Department name (e.g., "Everyday Chilled", "Bakery")
+        department: Department name (e.g., "Bakery")
         week: Week number (1-52)
         year: Year (e.g., 2024)
         metrics: Comma-separated list of metrics (e.g., "sales,gpbf,items,asp")
@@ -40,6 +41,9 @@ def fetch_weekly_metrics(
         dictionary of metric names to values
     """
     metrics_list = [m.strip() for m in metrics.split(",")]
+    logging.info(
+        f"Fetching weekly metrics for department={department}, week={week}, year={year}, metrics={metrics_list}"
+    )
     return get_weekly_metrics(department, week, year, metrics_list)
 
 
@@ -60,6 +64,9 @@ def fetch_channel_metrics(
         dictionary of metric names to values for the specified channel
     """
     metrics_list = [m.strip() for m in metrics.split(",")]
+    logging.info(
+        f"Fetching channel metrics for department={department}, week={week}, year={year}, channel={channel}, metrics={metrics_list}"
+    )
     return get_weekly_metrics_by_channel(department, week, year, channel, metrics_list)
 
 
@@ -79,6 +86,9 @@ def fetch_time_series(
     Returns:
         dictionary mapping week numbers to metric values
     """
+    logging.info(
+        f"Fetching time series for department={department}, metric={metric}, start_week={start_week}, end_week={end_week}, year={year}"
+    )
     return get_metric_time_series(department, metric, start_week, end_week, year)
 
 
@@ -102,7 +112,9 @@ def fetch_variance_data(
     prior_year = get_prior_year_metric(department, metric, week, year)
     budget = get_budget_values(department, week, year, metrics_list)[metric]
     forecast = get_forecast_values(department, week, year, metrics_list)[metric]
-
+    logging.info(
+        f"Variance data: actual={actual}, prior_year={prior_year}, budget={budget}, forecast={forecast}"
+    )
     return {
         "actual": actual,
         "prior_year": prior_year,
@@ -128,7 +140,9 @@ def fetch_promotional_analysis(department: str, week: int, year: int) -> dict[st
     """
     promo_metrics = get_promo_metrics(department, week, year)
     promo_sales = get_promo_sales(department, week, year)
-
+    logging.info(
+        f"Fetched promotional analysis for department={department}, week={week}, year={year}: metrics={promo_metrics}, sales_breakdown={promo_sales}"
+    )
     return {"metrics": promo_metrics, "sales_breakdown": promo_sales}
 
 
@@ -146,6 +160,9 @@ def fetch_category_performance(
     Returns:
         dictionary mapping category names to sales values
     """
+    logging.info(
+        f"Fetching category performance for department={department}, week={week}, year={year}"
+    )
     return get_category_sales(department, week, year)
 
 

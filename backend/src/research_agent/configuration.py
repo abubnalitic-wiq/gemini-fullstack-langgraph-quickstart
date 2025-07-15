@@ -15,23 +15,44 @@ class Configuration(BaseModel):
     )
 
     reflection_model: str = Field(
-        default="gemini-2.5-flash-preview-04-17",
+        default="gemini-2.5-flash",
         metadata={
             "description": "The name of the language model to use for the agent's reflection."
         },
     )
 
     reasoning_model: str = Field(
-        default="gemini-2.5-flash-preview-04-17",
+        default="gemini-2.5-flash",
         metadata={
             "description": "The name of the language model to use for the agent's reasoning."
         },
     )
 
     answer_model: str = Field(
-        default="gemini-2.5-pro-preview-05-06",
+        default="gemini-2.5-pro",
         metadata={
             "description": "The name of the language model to use for the agent's answer."
+        },
+    )
+
+    general_chat: str = Field(
+        default="gemini-2.5-flash",
+        metadata={
+            "description": "The name of the language model to use for the general chat model."
+        },
+    )
+
+    analyst_model: str = Field(
+        default="gemini-2.5-pro",
+        metadata={
+            "description": "The name of the language model to use for the analyst model."
+        },
+    )
+
+    router_model: str = Field(
+        default="gemini-2.5-flash",
+        metadata={
+            "description": "The name of the language model to use for the routing model."
         },
     )
 
