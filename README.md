@@ -63,12 +63,12 @@ For the backend, open a terminal in the `backend/` directory and run (make sure 
 langgraph dev
 ```
 
-**Tip for macOS users:**  
-If you encounter DNS resolution issues when running the backend, try executing:
-```bash
-source ../dns_resolution.sh
-```
-in your terminal before starting the backend server.
+> **Tip for macOS users:**  
+> If you encounter DNS resolution issues when running the backend, try executing:
+> ```bash
+> source ../dns_resolution.sh
+> ```
+> in your terminal before starting the backend server.
 
 The backend API will be available at `http://127.0.0.1:2024`.
 

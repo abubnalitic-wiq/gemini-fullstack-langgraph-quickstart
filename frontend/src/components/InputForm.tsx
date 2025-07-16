@@ -60,7 +60,7 @@ export const InputForm: React.FC<InputFormProps> = ({
           value={internalInputValue}
           onChange={(e) => setInternalInputValue(e.target.value)}
           onKeyDown={handleInternalKeyDown}
-          placeholder="What are the financial results for Bakery in week 33 2025?"
+          placeholder="What are the overall financial results for Bakery in week 33 2025?"
           className={`w-full text-neutral-100 placeholder-neutral-500 resize-none border-0 focus:outline-none focus:ring-0 outline-none focus-visible:ring-0 shadow-none 
                         md:text-base  min-h-[56px] max-h-[200px]`}
           rows={1}
