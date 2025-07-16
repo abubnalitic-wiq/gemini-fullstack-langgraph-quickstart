@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { ProcessedEvent } from "@/components/ActivityTimeline";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatMessagesView } from "@/components/ChatMessagesView";
+import { PromptEditor } from "@/components/PromptEditor";
+
 
 export default function App() {
   const [processedEventsTimeline, setProcessedEventsTimeline] = useState<
@@ -14,6 +16,18 @@ export default function App() {
   >({});
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const hasFinalizeEventOccurredRef = useRef(false);
+
+  const [isPromptEditorOpen, setIsPromptEditorOpen] = useState(false);
+  const [customPrompts, setCustomPrompts] = useState<Record<string, string>>({
+    query_writer: `Your goal is to generate sophisticated and diverse web search queries...`, // Full default prompt
+    web_searcher: `Conduct targeted Google Searches to gather the most recent...`,
+    reflection: `You are an expert research assistant analyzing summaries...`,
+    answer: `Generate a high-quality answer to the user's question...`,
+    financial_analyst: `You are a financial analyst assistant with access to financial data tools...`,
+    routing: `Analyze this query and determine the appropriate route...`,
+    chat: `You are a helpful assistant. Respond naturally to the user's message...`,
+    financial_qa: `You are a financial analyst assistant. Answer this specific financial question concisely...`
+  });
 
   const thread = useStream<{
     messages: Message[];
@@ -142,9 +156,10 @@ export default function App() {
         initial_search_query_count: initial_search_query_count,
         max_research_loops: max_research_loops,
         reasoning_model: model,
+        custom_prompts: customPrompts,
       });
     },
-    [thread]
+    [thread, customPrompts]
   );
 
   const handleCancel = useCallback(() => {
@@ -153,32 +168,40 @@ export default function App() {
   }, [thread]);
 
   return (
-    <div className="flex h-screen bg-neutral-800 text-neutral-100 font-sans antialiased">
-      <main className="flex-1 flex flex-col overflow-hidden max-w-4xl mx-auto w-full">
-        <div
-          className={`flex-1 overflow-y-auto ${
-            thread.messages.length === 0 ? "flex" : ""
-          }`}
-        >
-          {thread.messages.length === 0 ? (
-            <WelcomeScreen
-              handleSubmit={handleSubmit}
-              isLoading={thread.isLoading}
-              onCancel={handleCancel}
-            />
-          ) : (
-            <ChatMessagesView
-              messages={thread.messages}
-              isLoading={thread.isLoading}
-              scrollAreaRef={scrollAreaRef}
-              onSubmit={handleSubmit}
-              onCancel={handleCancel}
-              liveActivityEvents={processedEventsTimeline}
-              historicalActivities={historicalActivities}
-            />
-          )}
-        </div>
-      </main>
-    </div>
+    <>
+      <PromptEditor
+        isOpen={isPromptEditorOpen}
+        onToggle={() => setIsPromptEditorOpen(!isPromptEditorOpen)}
+        prompts={customPrompts}
+        onPromptsChange={setCustomPrompts}
+      />
+      <div className="flex h-screen bg-neutral-800 text-neutral-100 font-sans antialiased">
+        <main className="flex-1 flex flex-col overflow-hidden max-w-4xl mx-auto w-full">
+          <div
+            className={`flex-1 overflow-y-auto ${
+              thread.messages.length === 0 ? "flex" : ""
+            }`}
+          >
+            {thread.messages.length === 0 ? (
+              <WelcomeScreen
+                handleSubmit={handleSubmit}
+                isLoading={thread.isLoading}
+                onCancel={handleCancel}
+              />
+            ) : (
+              <ChatMessagesView
+                messages={thread.messages}
+                isLoading={thread.isLoading}
+                scrollAreaRef={scrollAreaRef}
+                onSubmit={handleSubmit}
+                onCancel={handleCancel}
+                liveActivityEvents={processedEventsTimeline}
+                historicalActivities={historicalActivities}
+              />
+            )}
+          </div>
+        </main>
+      </div>
+    </>
   );
 }
