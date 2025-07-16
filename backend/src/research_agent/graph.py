@@ -14,6 +14,13 @@ from pydantic import BaseModel, Field
 
 from src.query_tools.financial_data_tools import financial_analysis_tools
 from src.research_agent.configuration import Configuration
+from src.research_agent.history_summariser import (
+    add_to_state,
+    create_history_context,
+    get_message_tokens,
+    summarize_conversation,
+    truncate_messages,
+)
 from src.research_agent.llm_utils import (
     create_llm,
     execute_tool_calls,
@@ -70,6 +77,7 @@ class RouteDecision(BaseModel):
 
 def route_query(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
     """Determines which of 4 routes to take based on user query."""
+    state = add_to_state(state)
     latest_message = get_latest_user_message(state["messages"])
 
     if not latest_message:
@@ -77,10 +85,18 @@ def route_query(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
         return {"query_type": "general_discussion"}
 
     llm = create_llm(config, "router_model", temperature=0.3)
+    history_context = (
+        create_history_context(
+            state["conversation_history"], llm, max_history_tokens=1000
+        )
+        or "No previous conversation"
+    )
     structured_llm = llm.with_structured_output(RouteDecision)
 
     try:
-        decision = structured_llm.invoke(ROUTING_PROMPT.format(query=latest_message))
+        decision = structured_llm.invoke(
+            ROUTING_PROMPT.format(query=latest_message, history_context=history_context)
+        )
         query_type = decision.route
 
         logging.info(f"Query: '{latest_message[:100]}...'")
@@ -106,7 +122,7 @@ def route_query(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
         )
         query_type = "general_discussion"
 
-    return {"query_type": query_type}
+    return {"query_type": query_type, "state": state}
 
 
 # ===== Web Research Nodes =====
@@ -114,6 +130,7 @@ def route_query(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
 
 def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerationState:
     """Generate search queries based on the user's question."""
+    # state = add_to_state(state)
     configurable = Configuration.from_runnable_config(config)
 
     if state.get("initial_search_query_count") is None:
@@ -122,12 +139,21 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
     logging.info("[generate_query] Generating search queries based on user question.")
 
     llm = create_llm(config, "query_generator_model", temperature=1.0)
+
+    history_context = (
+        create_history_context(
+            state["conversation_history"], llm, max_history_tokens=1500
+        )
+        or "No previous financial discussions."
+    )
+
     structured_llm = llm.with_structured_output(SearchQueryList)
 
     formatted_prompt = query_writer_instructions.format(
         current_date=get_current_date(),
         research_topic=get_research_topic(state["messages"]),
         number_queries=state["initial_search_query_count"],
+        history_context=history_context,
     )
 
     result = structured_llm.invoke(formatted_prompt)
@@ -273,9 +299,19 @@ def financial_qa(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
             "messages": [AIMessage(content="I couldn't find a question to answer.")]
         }
 
-    formatted_prompt = FINANCIAL_QA_PROMPT.format(user_question=user_question)
-
     llm = create_llm(config, "analyst_model", temperature=0.2)
+
+    history_context = (
+        create_history_context(
+            state["conversation_history"], llm, max_history_tokens=1500
+        )
+        or "No previous financial discussions."
+    )
+
+    formatted_prompt = FINANCIAL_QA_PROMPT.format(
+        user_question=user_question, history_context=history_context
+    )
+
     llm_with_tools = llm.bind_tools(financial_analysis_tools)
 
     messages = [HumanMessage(content=formatted_prompt)]
@@ -294,7 +330,8 @@ def financial_qa(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
 
 
 def general_chat(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
-    """Handle general discussion and chitchat."""
+    """Handle general chat with conversation history."""
+    # state = add_to_state(state)
     user_question = get_latest_user_message(state["messages"])
 
     if not user_question:
@@ -302,10 +339,23 @@ def general_chat(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
 
     llm = create_llm(config, "general_chat_model", temperature=0.7)
 
-    # Fixed: Create proper message list
-    messages = [SystemMessage(content=CHAT_PROMPT), HumanMessage(content=user_question)]
+    # Create history context
+    history_context = create_history_context(
+        state["conversation_history"], llm, max_history_tokens=1500
+    )
+
+    # Create messages with history
+    messages = [SystemMessage(content=CHAT_PROMPT)]
+
+    if history_context:
+        messages.append(
+            SystemMessage(content=f"Previous conversation:\n{history_context}")
+        )
+
+    messages.append(HumanMessage(content=user_question))
 
     response = llm.invoke(messages)
+
     return {"messages": [response]}
 
 
@@ -324,9 +374,19 @@ def detailed_financial_report(
         }
 
     llm = create_llm(config, "query_generator_model", temperature=0)
+
+    history_context = (
+        create_history_context(
+            state["conversation_history"], llm, max_history_tokens=1500
+        )
+        or "No previous financial discussions."
+    )
+    financial_prompt = FINANCIAL_ANALYST_PROMPT.format(
+        user_query=user_query, history_context=history_context
+    )
+
     llm_with_tools = llm.bind_tools(financial_analysis_tools)
 
-    financial_prompt = FINANCIAL_ANALYST_PROMPT.format(user_query=user_query)
     logging.info(f"Generated financial prompt: {financial_prompt}")
 
     messages = [HumanMessage(content=financial_prompt)]
@@ -350,6 +410,87 @@ def detailed_financial_report(
     }
 
 
+# ===== Truncation Node =====
+
+
+def truncate_history(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
+    """Dedicated node to truncate conversation history at the end of each flow."""
+    configurable = Configuration.from_runnable_config(config)
+
+    # Initialize conversation_history if not present
+    if "conversation_history" not in state:
+        state["conversation_history"] = []
+
+    # Get current conversation history
+    current_history = state["conversation_history"].copy()
+
+    # Add the latest exchange to history
+    latest_user_msg = None
+    latest_ai_msg = None
+
+    # Find the latest user message and AI response
+    for msg in reversed(state["messages"]):
+        if isinstance(msg, HumanMessage) and not latest_user_msg:
+            latest_user_msg = msg
+        elif isinstance(msg, AIMessage) and not latest_ai_msg:
+            latest_ai_msg = msg
+
+        if latest_user_msg and latest_ai_msg:
+            break
+
+    # Add new messages to history
+    if latest_user_msg and latest_user_msg not in current_history:
+        current_history.append(latest_user_msg)
+    if latest_ai_msg and latest_ai_msg not in current_history:
+        current_history.append(latest_ai_msg)
+
+    # Get truncation parameters from config
+    max_history_tokens = getattr(configurable, "max_history_tokens", 4000)
+    keep_first = getattr(configurable, "keep_first_messages", 2)
+    keep_last = getattr(configurable, "keep_last_messages", 6)
+    summarize_threshold = getattr(configurable, "summarize_threshold", 6000)
+
+    # Check if summarization is needed
+    total_tokens = sum(get_message_tokens(msg) for msg in current_history)
+
+    if total_tokens > summarize_threshold:
+        # Create LLM for summarization
+        llm = create_llm(config, "query_generator_model", temperature=0.3)
+
+        # Find messages to summarize (older ones)
+        summarize_count = len(current_history) // 3  # Summarize oldest third
+        messages_to_summarize = current_history[:summarize_count]
+        remaining_messages = current_history[summarize_count:]
+
+        try:
+            summary = summarize_conversation(
+                messages_to_summarize, llm, max_summary_tokens=500
+            )
+            # Create a system message with the summary
+            summary_msg = SystemMessage(
+                content=f"Previous Conversation Summary:\n{summary}"
+            )
+            current_history = [summary_msg] + remaining_messages
+            logging.info("Conversation history summarized")
+        except Exception as e:
+            logging.error(f"Failed to summarize conversation: {e}")
+
+    # Truncate if still too long
+    truncated_history, was_truncated = truncate_messages(
+        current_history,
+        max_tokens=max_history_tokens,
+        keep_first=keep_first,
+        keep_last=keep_last,
+    )
+
+    if was_truncated:
+        logging.info(
+            f"Conversation history truncated from {len(current_history)} to {len(truncated_history)} messages"
+        )
+
+    return {"conversation_history": truncated_history}
+
+
 # ===== Graph Construction =====
 
 
@@ -366,6 +507,7 @@ def build_graph():
     builder.add_node("detailed_financial_report", detailed_financial_report)
     builder.add_node("financial_qa", financial_qa)
     builder.add_node("general_chat", general_chat)
+    builder.add_node("truncate_history", truncate_history)
 
     # Set entry point
     builder.set_entry_point("route_query")
@@ -394,10 +536,12 @@ def build_graph():
     )
 
     # Terminal edges
-    builder.add_edge("finalize_answer", END)
-    builder.add_edge("detailed_financial_report", END)
-    builder.add_edge("financial_qa", END)
-    builder.add_edge("general_chat", END)
+    builder.add_edge("finalize_answer", "truncate_history")
+    builder.add_edge("detailed_financial_report", "truncate_history")
+    builder.add_edge("financial_qa", "truncate_history")
+    builder.add_edge("general_chat", "truncate_history")
+
+    builder.add_edge("truncate_history", END)
 
     return builder.compile(name="pro-search-agent")
 

@@ -30,6 +30,8 @@ Topic: What revenue grew more last year apple stock or the number of people buyi
     "query": ["Apple total revenue growth fiscal year 2024", "iPhone unit sales growth fiscal year 2024", "Apple stock price growth fiscal year 2024"],
 }}
 ```
+Conversation History:
+{history_context}
 
 Context: {research_topic}"""
 
@@ -96,8 +98,6 @@ Summaries:
 {summaries}"""
 
 FINANCIAL_ANALYST_PROMPT = """You are a financial analyst assistant with access to financial data tools.
-    
-    User's request: {user_query}
         
     Use the available financial tools to gather data and generate insights. Focus on:
     1. Pulling relevant metrics
@@ -137,6 +137,10 @@ Based on the data gathered, create a structured analysis that includes:
 
 Remember: Make ALL the tool calls first to gather complete data before providing analysis. Each tool call returns real data that you must use in your response.
 
+Conversation History:
+{history_context}
+
+User's request: {user_query}
 """
 
 
@@ -173,6 +177,9 @@ Routes:
    - "Thanks for the help"
    - "Can you explain what you just did?"
 
+Conversation History:
+{history_context}
+
 Query: {query}
 
 Classify into exactly one of: detailed_financial_report, general_financial_question, web_research, general_discussion"""
@@ -188,6 +195,9 @@ You have access to these tools for getting financial data:
 - fetch_variance_data: Compare performance vs LY/Budget/Forecast
 - fetch_category_performance: Get category-level breakdowns
 - fetch_promotional_analysis: Analyze promotional effectiveness
+
+Conversation History:
+{history_context}
 
 Question: {user_question}
 

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import TypedDict
 from typing_extensions import Annotated
 
+from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
 
 
@@ -23,6 +24,7 @@ class OverallState(TypedDict):
     """
 
     messages: Annotated[list[str], add_messages]
+    conversation_history: list[BaseMessage]
     search_query: Annotated[list[str], operator.add]
     web_research_result: Annotated[list[str], operator.add]
     sources_gathered: Annotated[list[str], operator.add]
