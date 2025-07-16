@@ -34,12 +34,15 @@ Follow these steps to get the application running locally for development and te
 
 **2. Install Dependencies:**
  (needs updating to virtual env)
+ I am assuming you have uv set up.
 
 **Backend:**
 
 ```bash
 cd backend
-pip install .
+uv venv
+source .venv/bin/activate
+uv sync
 ```
 
 **Frontend:**
@@ -53,12 +56,34 @@ npm install
 
 **Backend & Frontend:**
 
+I prefer to run the backend and frontend separately.
+
+For the backend, open a terminal in the `backend/` directory and run (make sure you are in the venv you started above):
+```bash
+langgraph dev
+```
+
+**Tip for macOS users:**  
+If you encounter DNS resolution issues when running the backend, try executing:
+```bash
+source ../dns_resolution.sh
+```
+in your terminal before starting the backend server.
+
+The backend API will be available at `http://127.0.0.1:2024`.
+
+For the frontend, open a terminal in the `frontend/` directory and run 
+```bash
+npm run dev
+```
+ The frontend will be available at `http://localhost:5173`
+
+Alternatively, you can run:
 ```bash
 make dev
 ```
-This will run the backend and frontend development servers.    Open your browser and navigate to the frontend development server URL (e.g., `http://localhost:5173/app`).
+This will run the backend and frontend development servers.   Open your browser and navigate to the frontend development server URL (e.g., `http://localhost:5173/app`).
 
-_Alternatively, you can run the backend and frontend development servers separately. For the backend, open a terminal in the `backend/` directory and run `langgraph dev`. The backend API will be available at `http://127.0.0.1:2024`. It will also open a browser window to the LangGraph UI. For the frontend, open a terminal in the `frontend/` directory and run `npm run dev`. The frontend will be available at `http://localhost:5173`._
 
 ## How the Backend Agent Works (High-Level)
 
