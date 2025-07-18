@@ -130,7 +130,7 @@ def route_query(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
 
 def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerationState:
     """Generate search queries based on the user's question."""
-    # state = add_to_state(state)
+    state = add_to_state(state)
     configurable = Configuration.from_runnable_config(config)
 
     if state.get("initial_search_query_count") is None:
@@ -292,6 +292,7 @@ def finalize_answer(state: OverallState, config: RunnableConfig) -> dict[str, An
 
 def financial_qa(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
     """Handle quick financial questions without generating full reports."""
+    state = add_to_state(state)
     user_question = get_latest_user_message(state["messages"])
 
     if not user_question:
@@ -331,7 +332,7 @@ def financial_qa(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
 
 def general_chat(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
     """Handle general chat with conversation history."""
-    # state = add_to_state(state)
+    state = add_to_state(state)
     user_question = get_latest_user_message(state["messages"])
 
     if not user_question:
@@ -363,6 +364,7 @@ def detailed_financial_report(
     state: OverallState, config: RunnableConfig
 ) -> dict[str, Any]:
     """Generate comprehensive financial reports using financial tools."""
+    state = add_to_state(state)
     user_query = get_latest_user_message(state["messages"])
 
     if not user_query:
